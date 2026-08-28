@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditor de Código con IA</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --border: #334155;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: var(--accent);
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .auth-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    input, textarea {
+      width: 100%;
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: var(--accent);
+      color: #000;
+      font-weight: bold;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--accent-hover);
+      color: #fff;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #resultado {
+      white-space: pre-wrap;
+      background-color: var(--bg);
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .badge {
+      background-color: #0284c7;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>🤖 Auditor de Código IA</h1>
+      <div id="user-section" class="user-info">
+        <span id="user-email"></span>
+        <span id="user-creditos" class="badge"></span>
+        <button id="btn-logout" class="hidden" onclick="logout()">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <!-- Modal / Sección Autenticación -->
+    <div id="auth-card" class="card">
+      <h2 id="auth-title">Iniciar Sesión</h2>
+      <div class="auth-box">
+        <input type="email" id="auth-email" placeholder="Correo electrónico">
+        <input type="password" id="auth-password" placeholder="Contraseña">
+      </div>
+      <button onclick="autenticar('login')">Ingresar</button>
+      <button onclick="autenticar('registro')" style="background-color: transparent; color: var(--accent); border: 1px solid var(--accent);">Registrarse</button>
+      <p id="auth-msg" style="color: #f87171;"></p>
+    </div>
+
+    <!-- Panel de Auditoría -->
+    <div id="app-card" class="card hidden">
+      <h2>Pegá tu código para auditar:</h2>
+      <textarea id="codigo" rows="10" placeholder="// Pegá acá tu código JavaScript, Python, SQL, etc..."></textarea>
+      <br><br>
+      <button onclick="auditarCodigo()">🔍 Analizar Código</button>
+      
+      <h3>Resultado de la Auditoría:</h3>
+      <div id="resultado">El análisis aparecerá acá cuando presiones el botón.</div>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem('token');
+    let usuario = JSON.parse(localStorage.getItem('usuario'));
+
+    function actualizarInterfaz() {
+      if (token && usuario) {
+        document.getElementById('auth-card').classList.add('hidden');
+        document.getElementById('app-card').classList.remove('hidden');
+        document.getElementById('btn-logout').classList.remove('hidden');
+        document.getElementById('user-email').innerText = usuario.email;
+        document.getElementById('user-creditos').innerText = `Créditos: ${usuario.creditos}`;
+      } else {
+        document.getElementById('auth-card').classList.remove('hidden');
+        document.getElementById('app-card').classList.add('hidden');
+        document.getElementById('btn-logout').classList.add('hidden');
+        document.getElementById('user-email').innerText = '';
+        document.getElementById('user-creditos').innerText = '';
+      }
+    }
+
+    async function autenticar(tipo) {
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
+      const msg = document.getElementById('auth-msg');
+
+      if (!email || !password) {
+        msg.innerText = 'Por favor completá todos los campos';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/${tipo}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          msg.innerText = data.error || 'Ocurrió un error';
+          return;
+        }
+
+        if (tipo === 'registro') {
+          msg.style.color = '#4ade80';
+          msg.innerText = '¡Registro exitoso! Ahora podés iniciar sesión.';
+        } else {
+          token = data.token;
+          usuario = data.usuario;
+          localStorage.setItem('token', token);
+          localStorage.setItem('usuario', JSON.stringify(usuario));
+          actualizarInterfaz();
+        }
+      } catch (err) {
+        msg.innerText = 'Error al conectar con el servidor';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      token = null;
+      usuario = null;
+      actualizarInterfaz();
+    }
+
+    async function auditarCodigo() {
+      const codigo = document.getElementById('codigo').value;
+      const resultadoDiv = document.getElementById('resultado');
+
+      if (!codigo) {
+        alert('Por favor ingresá algún código');
+        return;
+      }
+
+      resultadoDiv.innerText = '⏳ Auditando código con IA, dame un segundo...';
+
+      try {
+        const res = await fetch('/api/auditar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codigo })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          resultadoDiv.innerText = data.analisis;
+        } else {
+          resultadoDiv.innerText = '❌ Error: ' + (data.error || 'No se pudo analizar');
+        }
+      } catch (err) {
+        resultadoDiv.innerText = '❌ Error de conexión al auditar';
+      }
+    }
+
+    actualizarInterfaz();
+  </script>
+
+</body>
+</html>
