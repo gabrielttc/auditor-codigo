@@ -3,6 +3,7 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const { MercadoPagoConfig, Preference } = require('mercadopago');
 require('dotenv').config();
 
 const app = express();
@@ -10,6 +11,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro_auditor';
+
+// Configurar cliente de Mercado Pago
+const mpClient = new MercadoPagoConfig({ 
+    accessToken: process.env.MP_ACCESS_TOKEN || 'TU_ACCESS_TOKEN_AQUI' 
+});
 
 // Conexión a la base de datos MySQL (Aiven)
 const dbConfig = {
@@ -155,6 +161,39 @@ app.get('/api/auditorias', async (req, res) => {
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Error al consultar historial' });
+  }
+});
+
+// 5. RUTA DE PAGOS: Crear preferencia para cobrar
+app.post('/api/crear-preferencia', async (req, res) => {
+  try {
+    const { titulo, precio, idUsuario } = req.body;
+    const preference = new Preference(mpClient);
+
+    const result = await preference.create({
+      body: {
+        items: [
+          {
+            title: titulo || 'Pack de Créditos para Auditoría',
+            unit_price: Number(precio) || 1500,
+            quantity: 1,
+            currency_id: 'ARS',
+          },
+        ],
+        external_reference: String(idUsuario || 'anonimo'),
+        back_urls: {
+          success: 'https://auditor-codigo-backend.onrender.com',
+          failure: 'https://auditor-codigo-backend.onrender.com',
+          pending: 'https://auditor-codigo-backend.onrender.com',
+        },
+        auto_return: 'approved',
+      },
+    });
+
+    res.json({ init_point: result.init_point });
+  } catch (err) {
+    console.error('Error al generar link de pago:', err);
+    res.status(500).json({ error: 'Error al generar la orden de pago' });
   }
 });
 
