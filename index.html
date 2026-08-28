@@ -86,6 +86,15 @@
       color: #fff;
     }
 
+    .btn-pagar {
+      background-color: #009ee3;
+      color: #fff;
+    }
+
+    .btn-pagar:hover {
+      background-color: #0081b8;
+    }
+
     .hidden {
       display: none;
     }
@@ -111,6 +120,17 @@
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 0.9rem;
+    }
+
+    .compra-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg);
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
     }
   </style>
 </head>
@@ -140,6 +160,15 @@
 
     <!-- Panel de Auditoría -->
     <div id="app-card" class="card hidden">
+      <!-- Sección de Carga de Créditos -->
+      <div class="compra-box">
+        <div>
+          <h3 style="margin: 0; color: var(--accent);">¿Necesitás más auditorías?</h3>
+          <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #94a3b8;">Cargá un pack de créditos para seguir analizando tus proyectos.</p>
+        </div>
+        <button class="btn-pagar" onclick="comprarCreditos()">💳 Comprar Créditos Pro ($1.500 ARS)</button>
+      </div>
+
       <h2>Pegá tu código para auditar:</h2>
       <textarea id="codigo" rows="10" placeholder="// Pegá acá tu código JavaScript, Python, SQL, etc..."></textarea>
       <br><br>
@@ -247,8 +276,33 @@
       }
     }
 
+    async function comprarCreditos() {
+      try {
+        const res = await fetch('/api/crear-preferencia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titulo: 'Pack Auditoría de Código Pro',
+            precio: 1500,
+            idUsuario: usuario ? usuario.id : null
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.init_point) {
+          window.location.href = data.init_point;
+        } else {
+          alert('No se pudo generar la orden de pago');
+        }
+      } catch (err) {
+        alert('Error al conectar con la pasarela de pagos');
+      }
+    }
+
     actualizarInterfaz();
   </script>
 
 </body>
 </html>
+       
